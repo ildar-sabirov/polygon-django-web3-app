@@ -57,3 +57,35 @@ def get_balance_view(request):
             {'error': 'Ошибка при получении баланса'},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+@api_view(['POST'])
+def get_balance_batch_view(request):
+    """
+    Получает балансы нескольких адресов.
+
+    Parameters:
+        request (HttpRequest): POST-запрос, содержащий список адресов.
+
+    Returns:
+        Response: JSON-ответ с балансами.
+    """
+    addresses = request.data.get('addresses', [])
+    if not addresses:
+        return Response(
+            {'error': 'Список адресов пуст'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        balances = []
+        for address in addresses:
+            balance_wei = contract.functions.balanceOf(address).call()
+            balance_eth = web3.fromWei(balance_wei, 'ether')
+            balances.append(float(balance_eth))
+        return Response({'balances': balances})
+    except Exception as e:
+        return Response(
+            {'error': 'Ошибка при получении балансов'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
