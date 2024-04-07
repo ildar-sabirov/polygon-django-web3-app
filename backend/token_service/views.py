@@ -5,21 +5,21 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from web3 import Web3
 
+from .utils import create_address_database
+
 ABI_FILE_PATH = 'data/erc20.abi.json'
 CONTRACT_ADDRESS = '0x1a9b54a3075119f1546c52ca0940551a6ce5d2d0'
+N_DEFAULT = 10
 
-# Подключение к RPC-узлу Polygon
 web3 = Web3(Web3.HTTPProvider('https://polygon-rpc.com'))
 
 
-# Загрузка ABI из файла
 def load_abi_from_file(file_path):
     with open(file_path, 'r') as file:
         abi = json.load(file)
     return abi
 
 
-# Инициализация контракта
 try:
     erc20_abi = load_abi_from_file(ABI_FILE_PATH)
     contract_address = web3.toChecksumAddress(CONTRACT_ADDRESS)
@@ -89,3 +89,44 @@ def get_balance_batch_view(request):
             {'error': 'Ошибка при получении балансов'},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+@api_view(['GET'])
+def get_top_view(request):
+    """
+    Получает топ N адресов по балансам токена.
+
+    Parameters:
+        request (HttpRequest): Запрос, содержащий параметр 'N' адресов в топе.
+
+    Returns:
+        Response: JSON-ответ с топ N адресов и их балансами.
+    """
+    n = request.GET.get('N', N_DEFAULT)
+    try:
+        n = int(n)
+    except ValueError:
+        return Response(
+            {'error': 'Неверное значение параметра N'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        addresses = create_address_database(CONTRACT_ADDRESS)
+        if not addresses:
+            return Response(
+                {'error': 'Не удалось получить адреса'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        balances = []
+        for address in addresses:
+            address = web3.toChecksumAddress(address)
+            balance_wei = contract.functions.balanceOf(address).call()
+            balance_eth = web3.fromWei(balance_wei, 'ether')
+            balances.append((address, float(balance_eth)))
+
+        top_balances = sorted(balances, key=lambda x: x[1], reverse=True)[:n]
+        return Response({'top_balances': top_balances})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
