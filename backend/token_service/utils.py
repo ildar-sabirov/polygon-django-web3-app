@@ -1,5 +1,5 @@
 import os
-import requests
+import aiohttp
 
 from web3 import Web3
 from dotenv import load_dotenv
@@ -11,35 +11,36 @@ POLIGONSCAN_API_KEY = os.getenv('API_KEY')
 web3 = Web3(Web3.HTTPProvider('https://polygon-rpc.com'))
 
 
-def get_transactions(contract_address, start_block, end_block):
-    url = (f'https://api.polygonscan.com/api'
-           f'?module=account'
-           f'&action=txlist'
-           f'&address={contract_address}'
-           f'&startblock={start_block}'
-           f'&endblock={end_block}'
-           f'&sort=asc'
-           f'&apikey={POLIGONSCAN_API_KEY}')
-    response = requests.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        transactions = data.get('result', [])
-        return transactions
-    else:
-        print('Error:', response.text)
+async def get_transactions(contract_address, start_block, end_block):
+    try:
+        url = (f'https://api.polygonscan.com/api'
+               f'?module=account'
+               f'&action=txlist'
+               f'&address={contract_address}'
+               f'&startblock={start_block}'
+               f'&endblock={end_block}'
+               f'&sort=asc'
+               f'&apikey={POLIGONSCAN_API_KEY}')
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    transactions = data.get('result', [])
+                    return transactions
+                else:
+                    print('Error:', response.text)
+                    return []
+    except Exception as e:
+        print(f'Error: {e}')
         return []
 
 
-def create_address_database(contract_address):
+async def create_address_database(contract_address):
     try:
         start_block = 0
         end_block = web3.eth.blockNumber
 
-        transactions = get_transactions(
-            contract_address,
-            start_block,
-            end_block
-        )
+        transactions = await get_transactions(contract_address, start_block, end_block)
 
         if transactions:
             addresses = set()
@@ -59,3 +60,29 @@ def create_address_database(contract_address):
     except Exception as e:
         print(f'Error: {e}')
         return []
+
+
+async def get_last_transaction_date(address):
+    try:
+        url = (f'https://api.polygonscan.com/api'
+               f'?module=account'
+               f'&action=txlist'
+               f'&address={address}'
+               f'&sort=desc'
+               f'&apikey={POLIGONSCAN_API_KEY}')
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    transactions = data.get('result', [])
+                    if transactions:
+                        last_transaction = transactions[0]
+                        return last_transaction.get('timeStamp')
+                    else:
+                        return None
+                else:
+                    print('Error:', response.text)
+                    return None
+    except Exception as e:
+        print(f'Error: {e}')
+        return None
