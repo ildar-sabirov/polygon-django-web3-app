@@ -12,9 +12,9 @@
 ## Технологии:
 
 + python 3.10
-+ Django 3.2.16
++ Django 4.2
 + djangorestframework 3.14.0
-+ Web3
++ Web3 6.1.0
 
 ## Клонирование проекта
 
