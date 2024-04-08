@@ -70,7 +70,9 @@ async def create_address_database(contract_address):
         start_block = 0
         end_block = web3.eth.blockNumber
 
-        transactions = await get_transactions(contract_address, start_block, end_block)
+        transactions = await get_transactions(
+            contract_address, start_block, end_block
+        )
 
         if transactions:
             addresses = set()

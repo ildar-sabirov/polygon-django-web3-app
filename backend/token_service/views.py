@@ -52,7 +52,7 @@ def get_balance_view(request):
         balance_eth = web3.fromWei(balance_wei, 'ether')
         response_data = {'balance': str(balance_eth)}
         return Response(response_data)
-    except Exception as e:
+    except Exception:
         return Response(
             {'error': 'Ошибка при получении баланса'},
             status=status.HTTP_400_BAD_REQUEST
@@ -84,7 +84,7 @@ def get_balance_batch_view(request):
             balance_eth = web3.fromWei(balance_wei, 'ether')
             balances.append(float(balance_eth))
         return Response({'balances': balances})
-    except Exception as e:
+    except Exception:
         return Response(
             {'error': 'Ошибка при получении балансов'},
             status=status.HTTP_400_BAD_REQUEST
