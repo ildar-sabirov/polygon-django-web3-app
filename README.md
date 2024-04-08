@@ -32,6 +32,27 @@ git clone git@github.com:ildar-sabirov/polygon-django-web3-app.git
 
 - Заполните переменные среды в файле .env в соответствии с вашей конфигурацией.
 
+## Установка зависимостей в виртуальное окружение
+
+Поочередно выполните команды:
+
+```
+python -m venv venv
+```
+
+```
+source venc/Scripts/activate
+```
+
+```
+python -m pip install -U pip
+```
+
+```
+# В директории /backend
+pip install -r requerements.txt
+```
+
 ## Применение миграций и запуск проекта
 
 Выполните команды:
@@ -52,7 +73,7 @@ GET `http://localhost:8080/get_balance?address=`
 
 ### Получение балансов нескольких адресов одновременно
 
-POST `http://localhost:8080/get_balance_batch`
+POST `http://localhost:8080/get_balance_batch/`
 
 Тело запроса:
 
