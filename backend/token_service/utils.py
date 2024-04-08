@@ -1,14 +1,11 @@
-import os
 import aiohttp
+import os
 
-from web3 import Web3
 from dotenv import load_dotenv
 
 load_dotenv()
 
 POLIGONSCAN_API_KEY = os.getenv('API_KEY')
-
-web3 = Web3(Web3.HTTPProvider('https://polygon-rpc.com'))
 
 
 async def get_transactions(contract_address, start_block, end_block):
@@ -65,10 +62,10 @@ async def get_last_transaction_date(address):
         return None
 
 
-async def create_address_database(contract_address):
+async def create_address_database(contract_address, web3):
     try:
         start_block = 0
-        end_block = web3.eth.blockNumber
+        end_block = await web3.eth.block_number
 
         transactions = await get_transactions(
             contract_address, start_block, end_block

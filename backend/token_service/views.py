@@ -1,9 +1,11 @@
+import asyncio
 import json
+import time
 
-from rest_framework import status
 from adrf.decorators import api_view
+from rest_framework import status
 from rest_framework.response import Response
-from web3 import Web3
+from web3 import AsyncWeb3, AsyncHTTPProvider
 
 from .utils import create_address_database, get_last_transaction_date
 
@@ -11,7 +13,7 @@ ABI_FILE_PATH = 'data/erc20.abi.json'
 CONTRACT_ADDRESS = '0x1a9b54a3075119f1546c52ca0940551a6ce5d2d0'
 N_DEFAULT = 10
 
-web3 = Web3(Web3.HTTPProvider('https://polygon-rpc.com'))
+web3 = AsyncWeb3(AsyncHTTPProvider('https://polygon-rpc.com'))
 
 
 def load_abi_from_file(file_path):
@@ -22,7 +24,7 @@ def load_abi_from_file(file_path):
 
 try:
     erc20_abi = load_abi_from_file(ABI_FILE_PATH)
-    contract_address = web3.toChecksumAddress(CONTRACT_ADDRESS)
+    contract_address = web3.to_checksum_address(CONTRACT_ADDRESS)
     contract = web3.eth.contract(address=contract_address, abi=erc20_abi)
 except FileNotFoundError:
     print(f'Файл ABI не найден: {ABI_FILE_PATH}')
@@ -30,7 +32,7 @@ except FileNotFoundError:
 
 
 @api_view(['GET'])
-def get_balance_view(request):
+async def get_balance_view(request):
     """
     Получает баланс выбранного адреса.
 
@@ -48,8 +50,8 @@ def get_balance_view(request):
         )
 
     try:
-        balance_wei = contract.functions.balanceOf(address).call()
-        balance_eth = web3.fromWei(balance_wei, 'ether')
+        balance_wei = await contract.functions.balanceOf(address).call()
+        balance_eth = web3.from_wei(balance_wei, 'ether')
         response_data = {'balance': str(balance_eth)}
         return Response(response_data)
     except Exception:
@@ -60,7 +62,7 @@ def get_balance_view(request):
 
 
 @api_view(['POST'])
-def get_balance_batch_view(request):
+async def get_balance_batch_view(request):
     """
     Получает балансы нескольких адресов.
 
@@ -80,8 +82,8 @@ def get_balance_batch_view(request):
     try:
         balances = []
         for address in addresses:
-            balance_wei = contract.functions.balanceOf(address).call()
-            balance_eth = web3.fromWei(balance_wei, 'ether')
+            balance_wei = await contract.functions.balanceOf(address).call()
+            balance_eth = web3.from_wei(balance_wei, 'ether')
             balances.append(float(balance_eth))
         return Response({'balances': balances})
     except Exception:
@@ -112,19 +114,33 @@ async def get_top_view(request):
         )
 
     try:
-        addresses = await create_address_database(CONTRACT_ADDRESS)
+        addresses = await create_address_database(CONTRACT_ADDRESS, web3)
         if not addresses:
             return Response(
                 {'error': 'Не удалось получить адреса'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        balances = []
-        for address in addresses:
-            address = web3.toChecksumAddress(address)
-            balance_wei = contract.functions.balanceOf(address).call()
-            balance_eth = web3.fromWei(balance_wei, 'ether')
-            balances.append((address, float(balance_eth)))
+        start_time = time.time()
+
+        semaphore = asyncio.Semaphore(2)
+
+        async def get_balance(address):
+            async with semaphore:
+                address = web3.to_checksum_address(address)
+                balance_wei = await contract.functions.balanceOf(
+                    address
+                ).call()
+                balance_eth = web3.from_wei(balance_wei, 'ether')
+                return address, float(balance_eth)
+
+        tasks = [get_balance(address) for address in addresses]
+        balances = await asyncio.gather(*tasks)
+        end_time = time.time()
+
+        execution_time = end_time - start_time
+
+        print(f"Время выполнения: {execution_time} секунд")
 
         top_balances = sorted(balances, key=lambda x: x[1], reverse=True)[:n]
         return Response({'top_balances': top_balances})
@@ -155,7 +171,7 @@ async def get_top_with_transactions_view(request):
         )
 
     try:
-        addresses = await create_address_database(CONTRACT_ADDRESS)
+        addresses = await create_address_database(CONTRACT_ADDRESS, web3)
         if not addresses:
             return Response(
                 {'error': 'Не удалось получить адреса'},
@@ -164,9 +180,9 @@ async def get_top_with_transactions_view(request):
 
         top_with_transactions = []
         for address in addresses:
-            address = web3.toChecksumAddress(address)
+            address = web3.to_checksum_address(address)
             balance_wei = contract.functions.balanceOf(address).call()
-            balance_eth = web3.fromWei(balance_wei, 'ether')
+            balance_eth = web3.from_wei(balance_wei, 'ether')
             last_transaction_date = await get_last_transaction_date(address)
             top_with_transactions.append(
                 (address, float(balance_eth), last_transaction_date)
