@@ -3,7 +3,8 @@ from .views import (
     get_balance_view,
     get_balance_batch_view,
     get_top_view,
-    get_top_with_transactions_view
+    get_top_with_transactions_view,
+    get_token_info_view,
 )
 
 urlpatterns = [
@@ -17,4 +18,5 @@ urlpatterns = [
         get_top_with_transactions_view,
         name='get_top_with_transactions'
     ),
+    path('get_token_info/', get_token_info_view, name='get_token_info'),
 ]

@@ -180,3 +180,37 @@ async def get_top_with_transactions_view(request):
         return Response({'top_with_transactions': top_with_transactions})
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def get_token_info_view(request):
+    """
+    Получает информацию о токене по его адресу.
+
+    Parameters:
+        request (HttpRequest): Запрос, содержащий параметр 'address' с адресом.
+
+    Returns:
+        Response: JSON-ответ с информацией о токене.
+    """
+    token_address = request.GET.get('address', '')
+    if not token_address:
+        return Response(
+            {'error': 'Адрес токена не указан'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        symbol = contract.functions.symbol().call()
+        name = contract.functions.name().call()
+        total_supply = contract.functions.totalSupply().call()
+
+        token_info = {
+            'symbol': symbol,
+            'name': name,
+            'totalSupply': total_supply
+        }
+
+        return Response(token_info)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
